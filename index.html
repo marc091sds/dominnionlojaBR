@@ -146,6 +146,7 @@ footer .links{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin
 .search{position:relative}
 .sug{position:absolute;left:0;right:0;top:100%;margin-top:-8px;background:var(--card);border:1px solid var(--line);border-radius:10px;z-index:5;overflow:hidden}
 .sug button{display:block;width:100%;text-align:left;padding:12px 14px;min-height:44px;border-bottom:1px solid rgba(255,255,255,.06)}
+.drawer .df{padding-bottom:76px}
 .fav{position:absolute;top:6px;right:6px;z-index:3;width:40px;height:40px;border-radius:50%;background:rgba(10,10,11,.7);font-size:20px;display:grid;place-items:center}
 .fav.on{color:var(--sand)}
 .old{color:var(--mut);font-weight:400;font-size:13px}
@@ -290,7 +291,7 @@ footer .links{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin
   <label>Telefone com DDD<input class="inp" id="cTel" type="tel" autocomplete="tel"></label>
   <label>Endereço (rua, número, bairro)<input class="inp" id="cEnd" autocomplete="street-address"></label>
   <button class="btn pri blk" id="payBtn" data-act="pay">Pagar com Mercado Pago (Pix ou cartão)</button>
-  <p style="font-size:12.5px;color:var(--mut)">Para pagar online, calcule e escolha o frete na sacola. O CEP usado é o do cálculo.</p></div>
+  <p style="font-size:12.5px;color:var(--mut)">Para pagar online, calcule e escolha o frete na sacola. O CEP usado é o do cálculo.</p><div id="payErr" role="alert" hidden style="border:1px solid var(--sand);border-radius:10px;padding:10px 12px;font-size:13.5px;margin:8px 0"></div></div>
   <label>Forma de entrega<select class="inp" id="cEnt"></select></label>
   <button class="btn pri blk" id="sendBtn" data-act="send">Enviar pedido no WhatsApp</button>
  </div>
@@ -474,7 +475,10 @@ function sendOrder(){
   window.open(wa(msg),'_blank','noopener');
 }
 /* integração: frete (Melhor Envio) e pagamento (Mercado Pago) via funções do Netlify */
-async function api(u,b){const r=await fetch('/.netlify/functions/'+u,b?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}:{});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.erro||'Falha na conexão');return d}
+async function api(u,b){const r=await fetch('/.netlify/functions/'+u,b?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}:{});
+  const tx=await r.text();let d=null;try{d=JSON.parse(tx)}catch(e){}
+  if(!d||typeof d!=='object')throw new Error('resposta inesperada do servidor, código '+r.status);
+  if(!r.ok)throw new Error(d.erro||('erro do servidor, código '+r.status));return d}
 const dg=v=>String(v||'').replace(/\D/g,''),mask=v=>{v=dg(v).slice(0,8);return v.length>5?v.slice(0,5)+'-'+v.slice(5):v};
 let frTimer,frKey='',CUR=null,pvTimer;
 async function calcFrete(manual){   // calcula o frete da sacola inteira (peso, medidas e quantidades vêm do servidor)
@@ -508,8 +512,8 @@ async function pagar(){
   if(!/^\S+@\S+\.\S+$/.test(c.email)){toast('E-mail inválido');return}
   if(!FR||!FR.sel){toast('Calcule e escolha o frete na sacola');return}
   const b=$('#payBtn'),tx=b.textContent;b.disabled=true;b.textContent='Abrindo pagamento…';
-  try{const d=await api('pagamento',{items:S.cart,cupom:S.cup,cep:FR.cep,freteId:FR.sel.id,cliente:c});if(!d.url)throw new Error('sem link');location.href=d.url}
-  catch(e){toast('Não foi possível iniciar o pagamento: '+e.message);b.disabled=false;b.textContent=tx}}
+  try{const d=await api('pagamento',{items:S.cart,cupom:S.cup,cep:FR.cep,freteId:FR.sel.id,cliente:c});if(!d.url)throw new Error('o servidor não devolveu o link de pagamento');location.href=d.url}
+  catch(e){const pe=$('#payErr');pe.textContent='Não foi possível abrir o pagamento agora ('+e.message+'). Envie o pedido pelo WhatsApp logo abaixo, que combinamos o pagamento por lá.';pe.hidden=false;$('#sendBtn').className='btn pri blk';toast('Não foi possível iniciar o pagamento');b.disabled=false;b.textContent=tx}}
 async function retorno(){
   const p=new URLSearchParams(location.search),st=p.get('pedido'),ref=p.get('ref');if(!st||!ref)return;
   let s='';try{s=(await api('status?ref='+encodeURIComponent(ref))).status||''}catch(e){}
@@ -533,7 +537,7 @@ document.addEventListener('click',e=>{
   else if(a==='cart')openCart();
   else if(a==='closeAll')closeAll();
   else if(a==='coupon'){const c=$('#cup').value.trim().toUpperCase();S.cup=(CONFIG.cupons||{})[c]?c:"";save();renderCart();if(!S.cup)toast('Cupom inválido')}
-  else if(a==='checkout'){const on=!!(CFG.pagamento&&CFG.frete&&FR&&FR.sel);$('#payBox').hidden=!on;$('#sendBtn').className='btn blk '+(on?'ghost':'pri');$('#drawer').classList.remove('on');$('#mChk').classList.add('on');$('#cNome').focus()}
+  else if(a==='checkout'){const on=!!(CFG.pagamento&&CFG.frete&&FR&&FR.sel);$('#payBox').hidden=!on;$('#payErr').hidden=true;$('#sendBtn').className='btn blk '+(on?'ghost':'pri');$('#drawer').classList.remove('on');$('#mChk').classList.add('on');$('#cNome').focus()}
   else if(a==='send')sendOrder();
   else if(a==='frete')calcFrete(true);
   else if(a==='cimg'){const w=b.closest('.ph');w.classList.add('sel');[...w.querySelectorAll('img')].forEach((x,i)=>x.classList.toggle('on',i===+b.dataset.i));[...w.querySelectorAll('.dots button')].forEach(x=>x.classList.toggle('on',x===b))}
@@ -573,7 +577,7 @@ async function lerCatalogo(){try{const c=new AbortController(),tm=setTimeout(()=
   catJSON=j;P.splice(0,P.length,...d.produtos);norm();S.cart=S.cart.filter(i=>find(i.id));save();return true}catch(e){return false}}
 async function lerConfig(){try{const r=await fetch('/.netlify/functions/config',{cache:'no-store'});if(r.ok)CFG=await r.json()}catch(e){}}
 const aplicaCfg=()=>{$('#frBox').hidden=!CFG.frete};
-async function sincronizar(){if($('#mProd').classList.contains('on')||$('#mChk').classList.contains('on'))return;
+async function sincronizar(){if(document.hidden)return;if($('#mProd').classList.contains('on')||$('#mChk').classList.contains('on'))return;
   if(await lerCatalogo()){renderStatic();renderGrid();renderCart()}}
 (async()=>{await Promise.all([lerCatalogo(),lerConfig()]);aplicaCfg();$('#cep').value=mask(S.cep||'');renderStatic();renderGrid();renderCart();renderFav();retorno();
   setInterval(sincronizar,15000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)sincronizar()})})();

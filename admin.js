@@ -1,7 +1,7 @@
 // API do painel (admin.html). Só responde com a senha correta (variável ADMIN_SENHA).
 const crypto = require('crypto');
-const { J } = require('./_comum');
-const { st, lerProdutos, salvarProdutos } = require('./_dados');
+const { J } = require('./_lib');
+const { st, lerProdutos, salvarProdutos } = require('./_lib');
 
 const chave = () => crypto.createHash('sha256').update('dominnion-admin|' + (process.env.ADMIN_SENHA || '')).digest();
 const assinar = () => { const p = Buffer.from(JSON.stringify({ exp: Date.now() + 12 * 3600e3 })).toString('base64url'); return p + '.' + crypto.createHmac('sha256', chave()).update(p).digest('base64url'); };

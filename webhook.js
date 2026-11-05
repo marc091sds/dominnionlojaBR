@@ -1,6 +1,6 @@
 // Recebe o aviso do Mercado Pago, valida, confere o pagamento na API, guarda o pedido e baixa o estoque.
 const crypto = require('crypto');
-const { st, lerProdutos, salvarProdutos } = require('./_dados');
+const { st, lerProdutos, salvarProdutos } = require('./_lib');
 exports.handler = async e => {
   const q = e.queryStringParameters || {}; let b = {}; try { b = JSON.parse(e.body || '{}'); } catch (x) {}
   const id = String(q['data.id'] || (b.data && b.data.id) || ''), tipo = q.type || b.type || q.topic;
