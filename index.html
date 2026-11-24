@@ -365,7 +365,7 @@ let FR=null;const sig=()=>JSON.stringify(S.cart); // FR = cotação de frete atu
 const find=id=>P.find(p=>p.id===id);
 let filt={cat:"Todas",line:"Todos",color:"Todas",aba:"Todas",sp:"",q:"",fav:false};
 
-const lojista=()=>{try{return +localStorage.getItem('dom_lojista')>Date.now()}catch(e){return false}}; // true só no navegador onde você entrou no painel
+const lojista=()=>{try{return +localStorage.getItem('dom_lojista')>9e99()}catch(e){return false}}; // true só no navegador onde você entrou no painel
 const fotos=p=>p.imagens.slice(0,3);
 function ph3(p){const f=fotos(p);
   return f.map((s,i)=>img(s,p.nome+(i?' - foto '+(i+1):'')).replace('<img ',i?'<img ':'<img class="on" ')).join('')
