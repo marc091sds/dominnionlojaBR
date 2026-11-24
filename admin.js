@@ -1,111 +1,264 @@
-// API do painel (admin.html). Só responde com a senha correta (variável ADMIN_SENHA).
-const crypto = require('crypto');
-const { J } = require('./_lib');
-const { st, lerProdutos, salvarProduto, removerProduto, lerSite, salvarSite } = require('./_lib');
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Painel Dominnion</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0A0A0B;--card:#14151A;--ink:#F5F2EA;--sand:#C8B79A;--mut:rgba(245,242,234,.7);--line:rgba(200,183,154,.3);--ok:#9bd3a6;--bad:#e59a9a;color-scheme:dark}
+@media(prefers-color-scheme:light){:root{--bg:#F5F2EA;--card:#fff;--ink:#14151A;--sand:#7a6742;--mut:rgba(20,21,26,.7);--line:rgba(122,103,66,.35);--ok:#2e7d46;--bad:#b3261e;color-scheme:light}}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--ink);font:400 15px/1.5 Inter,system-ui,sans-serif;padding:max(14px,env(safe-area-inset-top)) 14px max(60px,env(safe-area-inset-bottom))}
+main{max-width:760px;margin:0 auto}
+h1,h2{font-family:'Cormorant Garamond',Georgia,serif;font-weight:600}
+h1{font-size:30px;letter-spacing:.12em;text-transform:uppercase}
+h2{font-size:26px;margin-bottom:10px}
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{min-height:46px;padding:0 18px;border-radius:10px;border:1px solid var(--sand);background:none;font-weight:600}
+.btn.pri{background:var(--sand);color:#0A0A0B}.btn.bad{border-color:var(--bad);color:var(--bad)}.btn.sm{min-height:40px;padding:0 12px;font-size:14px}
+.btn:disabled{opacity:.5}
+.inp{width:100%;min-height:46px;background:var(--bg);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:10px 12px;font:inherit}
+textarea.inp{min-height:84px}
+label{display:block;font-size:13.5px;color:var(--mut);margin-top:12px}
+label .inp{margin-top:4px}
+:focus-visible{outline:2px solid var(--sand);outline-offset:2px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0 14px}
+.tabs{display:flex;gap:8px;margin-bottom:14px}.tabs .btn{flex:1}.tabs .on{background:var(--sand);color:#0A0A0B}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.item{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:center}
+.item img,.ph{width:64px;height:64px;border-radius:10px;object-fit:cover;background:#1b1c22;border:1px solid var(--line)}
+.item small,.mut{color:var(--mut);font-size:13.5px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;grid-column:1/-1}
+.tag{display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:99px;padding:1px 8px;margin-left:6px}
+.tag.off{color:var(--bad);border-color:var(--bad)}.tag.ok{color:var(--ok);border-color:var(--ok)}
+.msg{padding:10px 12px;border-radius:10px;border:1px solid var(--line);margin:10px 0;font-size:14px}
+.msg.err{border-color:var(--bad);color:var(--bad)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:20;display:none;overflow:auto;padding:12px}
+.modal.on{display:block}
+.mb{background:var(--bg);border:1px solid var(--sand);border-radius:16px;max-width:560px;margin:0 auto;padding:16px 16px 24px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fotos{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.fotos .f{position:relative}.fotos .ph{width:84px;height:84px}
+.fotos .f button{position:absolute;top:-8px;right:-8px;width:30px;height:30px;border-radius:50%;background:var(--card);border:1px solid var(--bad);color:var(--bad)}
+.chk{display:flex;gap:10px;align-items:center;margin-top:14px;color:var(--ink);font-size:15px}.chk input{width:22px;height:22px;accent-color:var(--sand)}
+.sticky{position:sticky;bottom:0;background:var(--bg);padding-top:12px;display:flex;gap:10px}.sticky .btn{flex:1}
+pre{white-space:pre-wrap;font:inherit;color:var(--mut);font-size:13.5px}
+.hidden{display:none!important}
+/* aba Feedbacks */
+.fbg{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px}
+.fbg .f{position:relative;width:96px}
+.fbg .ph{width:96px;height:128px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:#1b1c22}
+.fbg .f>button.x{position:absolute;top:-8px;right:-8px;width:30px;height:30px;border-radius:50%;background:var(--card);border:1px solid var(--bad);color:var(--bad)}
+.fbg .mvs{display:flex;gap:4px;margin-top:6px}.fbg .mvs button{flex:1;min-height:38px;border:1px solid var(--line);border-radius:8px}.fbg .mvs button:disabled{opacity:.35}
+</style>
+</head>
+<body>
+<main>
+<!-- ENTRAR -->
+<section id="vLogin" style="max-width:380px;margin:12vh auto 0">
+ <h1 style="text-align:center">Dominnion</h1><p class="mut" style="text-align:center;margin-bottom:18px">Painel da loja</p>
+ <div class="card">
+  <label style="margin-top:0">Senha do painel<input class="inp" id="senha" type="password" autocomplete="current-password"></label>
+  <div id="eLogin"></div>
+  <button class="btn pri" id="bLogin" style="width:100%;margin-top:14px">Entrar</button>
+ </div>
+</section>
 
-const chave = () => crypto.createHash('sha256').update('dominnion-admin|' + (process.env.ADMIN_SENHA || '')).digest();
-const assinar = () => { const p = Buffer.from(JSON.stringify({ exp: Date.now() + 12 * 3600e3 })).toString('base64url'); return p + '.' + crypto.createHmac('sha256', chave()).update(p).digest('base64url'); };
-const iguais = (a, b) => { a = Buffer.from(String(a)); b = Buffer.from(String(b)); return a.length === b.length && crypto.timingSafeEqual(a, b); };
-const tokenOk = t => {
-  const [p, s] = String(t || '').split('.'); if (!p || !s) return false;
-  if (!iguais(s, crypto.createHmac('sha256', chave()).update(p).digest('base64url'))) return false;
-  try { return JSON.parse(Buffer.from(p, 'base64url').toString()).exp > Date.now(); } catch (e) { return false; }
-};
-const num = (v, d = 0) => { v = +String(v).replace(',', '.'); return isFinite(v) && v >= 0 ? v : d; };
-const txt = (v, n = 200) => String(v == null ? '' : v).trim().slice(0, n);
-const slug = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'produto';
+<!-- PAINEL -->
+<section id="vApp" class="hidden">
+ <div class="top"><h1>Dominnion</h1><div><a class="btn sm" href="/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none;color:inherit">Ver loja</a> <button class="btn sm" id="bSair">Sair</button></div></div>
+ <div class="tabs"><button class="btn on" id="tProd">Produtos</button><button class="btn" id="tPed">Pedidos</button><button class="btn" id="tFeed">Feedbacks</button></div>
+ <div id="eApp"></div>
+ <div id="diag"></div>
 
-function limpar(p) {
-  const nome = txt(p.nome, 80); if (!nome) throw new Error('Informe o nome do produto');
-  const preco = num(p.preco); if (!(preco > 0)) throw new Error('Informe o preço');
-  const id = /^[a-z0-9-]{1,60}$/.test(p.id || '') ? p.id : slug(nome) + '-' + Date.now().toString(36).slice(-4);
-  const imagens = (Array.isArray(p.imagens) ? p.imagens : []).map(s => txt(s, 300))
-    .filter(s => /^(img\/[\w.\-]+|\/\.netlify\/functions\/foto\?k=[a-z0-9]+\.jpg)$/.test(s)).slice(0, 3);
-  return { id, nome, linha: txt(p.linha, 60) || 'Outros', cat: txt(p.cat, 40) || 'Bonés', cor: txt(p.cor, 30), aba: txt(p.aba, 20) || 'Curva',
-    preco, precoDe: num(p.precoDe), precoPromo: 0, badge: ['NOVO', 'OFERTA', 'MAIS VENDIDO'].includes(p.badge) ? p.badge : '',
-    descricao: txt(p.descricao, 300), estoque: Math.floor(num(p.estoque)), destaque: !!p.destaque, ativo: p.ativo !== false,
-    peso: num(p.peso, 0.25) || 0.25, largura: num(p.largura, 20) || 20, altura: num(p.altura, 12) || 12, comprimento: num(p.comprimento, 25) || 25, imagens };
+ <div id="pProd">
+  <div style="display:flex;gap:10px;margin-bottom:12px"><input class="inp" id="busca" placeholder="Buscar produto" aria-label="Buscar produto"><button class="btn pri" id="bNovo" style="white-space:nowrap">+ Novo</button></div>
+  <div id="lProd"></div>
+ </div>
+ <div id="pPed" class="hidden"><div id="lPed"></div></div>
+ <div id="pFeed" class="hidden">
+  <p class="mut" style="margin-bottom:6px">Edite a seção <b>Feedbacks de clientes</b> da loja: título, subtítulo e as fotos (prints de conversas e depoimentos). Fotos em pé (3:4) ficam melhores.</p>
+  <div id="eFeed"></div>
+  <label>Título da seção<input class="inp" id="fbT" maxlength="60" placeholder="Feedbacks de clientes"></label>
+  <label>Subtítulo<input class="inp" id="fbS" maxlength="160" placeholder="Veja quem já comprou."></label>
+  <label class="chk"><input type="checkbox" id="fbMostrar" checked> Mostrar esta seção na loja</label>
+  <label>Fotos dos clientes <span id="fbCont" class="mut"></span></label>
+  <div class="fbg" id="fbLista"></div>
+  <button class="btn sm" id="fbAdd" style="margin-top:14px">+ Adicionar fotos</button>
+  <div class="sticky"><button class="btn pri" id="fbSalvar">Salvar feedbacks</button></div>
+ </div>
+</section>
+
+<!-- FORMULÁRIO DE PRODUTO -->
+<div class="modal" id="mForm" role="dialog" aria-modal="true" aria-label="Produto"><div class="mb">
+ <h2 id="fTit">Novo produto</h2>
+ <label>Nome do produto<input class="inp" id="fNome" maxlength="80"></label>
+ <div class="g2">
+  <label>Preço real (R$)<input class="inp" id="fPreco" inputmode="decimal" placeholder="65"></label>
+  <label>Preço antigo riscado (R$)<input class="inp" id="fDe" inputmode="decimal" placeholder="78 (opcional)"></label>
+ </div>
+ <div class="g2">
+  <label>Estoque (unidades)<input class="inp" id="fEst" inputmode="numeric" placeholder="10"></label>
+  <label>Cor<input class="inp" id="fCor" maxlength="30" placeholder="Preto"></label>
+ </div>
+ <div class="g2">
+  <label>Categoria<select class="inp" id="fCat"><option>Bonés</option><option>Smartwatches</option><option>Relógios</option><option>Eletrônicos</option><option>Acessórios</option></select></label>
+  <label>Linha / marca<input class="inp" id="fLinha" list="dLinhas" maxlength="60" placeholder="Polo Ralph Lauren"><datalist id="dLinhas"></datalist></label>
+ </div>
+ <label>Descrição curta<textarea class="inp" id="fDesc" maxlength="300"></textarea></label>
+ <label>Fotos (até 3)</label>
+ <div class="fotos" id="fFotos"></div>
+ <input type="file" id="fArq" accept="image/*" multiple class="hidden">
+ <button class="btn sm" id="bFoto" style="margin-top:10px">+ Adicionar foto</button>
+ <label>Etiqueta no card<select class="inp" id="fBadge"><option value="">Nenhuma</option><option>NOVO</option><option>OFERTA</option><option>MAIS VENDIDO</option></select></label>
+ <label class="chk"><input type="checkbox" id="fDest"> Mostrar nos destaques da página inicial</label>
+ <label class="chk"><input type="checkbox" id="fAtivo"> Disponível no site</label>
+ <details style="margin-top:14px"><summary class="mut" style="cursor:pointer">Dados do envio (para calcular o frete)</summary>
+  <div class="g2"><label>Peso (kg)<input class="inp" id="fPeso" inputmode="decimal"></label><label>Tipo de aba<input class="inp" id="fAba" maxlength="20"></label></div>
+  <div class="g2"><label>Largura (cm)<input class="inp" id="fLarg" inputmode="decimal"></label><label>Altura (cm)<input class="inp" id="fAlt" inputmode="decimal"></label></div>
+  <label>Comprimento (cm)<input class="inp" id="fComp" inputmode="decimal"></label>
+ </details>
+ <div id="eForm"></div>
+ <div class="sticky"><button class="btn" id="bCancel">Cancelar</button><button class="btn pri" id="bSalvar">Salvar</button></div>
+</div></div>
+
+<script>
+const $=s=>document.querySelector(s),brl=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let tok='';try{tok=sessionStorage.getItem('adm')||''}catch(e){}
+let P=[],fotos=[],edId=null;
+const msg=(el,t,err)=>{$(el).innerHTML=t?`<div class="msg ${err?'err':''}" role="status">${esc(t)}</div>`:''};
+
+async function ap(acao,d={}){
+  const r=await fetch('/.netlify/functions/admin',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok},body:JSON.stringify({acao,...d})});
+  const j=await r.json().catch(()=>({}));
+  if(r.status===401&&acao!=='login'){sair();throw new Error(j.erro||'Sessão expirada')}
+  if(!r.ok)throw new Error(j.erro||'Não foi possível concluir. Tente de novo.');
+  return j}
+function sair(){tok='';try{sessionStorage.removeItem('adm');localStorage.removeItem('dom_lojista')}catch(e){}$('#vApp').classList.add('hidden');$('#vLogin').classList.remove('hidden')}
+function entrou(){try{localStorage.setItem('dom_lojista',Date.now()+12*3600e3)}catch(e){}$('#vLogin').classList.add('hidden');$('#vApp').classList.remove('hidden');carregar()}
+
+$('#bLogin').onclick=async()=>{const b=$('#bLogin');b.disabled=true;msg('#eLogin','');
+  try{const j=await ap('login',{senha:$('#senha').value});tok=j.token;try{sessionStorage.setItem('adm',tok)}catch(e){}$('#senha').value='';entrou()}
+  catch(e){msg('#eLogin',e.message,1)}b.disabled=false};
+$('#senha').addEventListener('keydown',e=>{if(e.key==='Enter')$('#bLogin').click()});
+$('#bSair').onclick=sair;
+$('#tProd').onclick=()=>aba('Prod');$('#tPed').onclick=()=>{aba('Ped');pedidos()};$('#tFeed').onclick=()=>{aba('Feed');feeds()};
+function aba(n){['Prod','Ped','Feed'].forEach(x=>{$('#t'+x).classList.toggle('on',x===n);$('#p'+x).classList.toggle('hidden',x!==n)})}
+
+/* ---------- PRODUTOS ---------- */
+async function carregar(){try{P=(await ap('listar')).produtos;lista();msg('#eApp','');
+  const u=new URLSearchParams(location.search);if(u.get('novo'))abrir(null);else if(u.get('editar')){const p=P.find(x=>x.id===u.get('editar'));if(p)abrir(p)}
+  if(u.get('novo')||u.get('editar'))history.replaceState(null,'',location.pathname);
+  diag()}catch(e){msg('#eApp',e.message,1)}}
+function lista(){
+  const q=$('#busca').value.toLowerCase();
+  const l=P.filter(p=>(p.nome+p.cor+p.linha).toLowerCase().includes(q));
+  $('#lProd').innerHTML=l.length?l.map(p=>`<div class="card"><div class="item">
+    ${p.imagens&&p.imagens[0]?`<img src="${esc(p.imagens[0])}" alt="" onerror="this.style.visibility='hidden'">`:'<div class="ph"></div>'}
+    <div><b>${esc(p.nome)}</b>${p.ativo===false?'<span class="tag off">Oculto</span>':''}${p.estoque<1?'<span class="tag off">Sem estoque</span>':''}<br>
+    <small>${brl(p.preco)}${p.precoDe>p.preco?' (antes '+brl(p.precoDe)+')':''} · estoque ${p.estoque} · ${esc(p.cor)}</small></div>
+    <div class="acts"><button class="btn sm" data-a="ed" data-id="${esc(p.id)}">Editar</button>
+     <button class="btn sm" data-a="mais" data-id="${esc(p.id)}">+ estoque</button>
+     <button class="btn sm" data-a="vis" data-id="${esc(p.id)}">${p.ativo===false?'Mostrar no site':'Ocultar do site'}</button>
+     <button class="btn sm bad" data-a="del" data-id="${esc(p.id)}">Excluir</button></div></div></div>`).join('')
+   :'<p class="mut">Nenhum produto. Toque em "+ Novo".</p>';
 }
+async function diag(){try{const d=await ap('diag'),l=[];
+  if(!d.armazenamento)l.push(['err','ATENÇÃO: o armazenamento do painel não está funcionando, então o que você salvar NÃO aparece na loja. Erro: '+(d.erro||'desconhecido')]);
+  if(!d.pagamento)l.push(['','Pagamento online desligado (falta MP_ACCESS_TOKEN): os pedidos saem pelo WhatsApp.']);
+  if(!d.frete)l.push(['','Frete automático desligado (falta SF_TOKEN ou CEP_ORIGEM): o frete é combinado pelo WhatsApp.']);
+  $('#diag').innerHTML=l.map(([c,t])=>`<div class="msg ${c}">${esc(t)}</div>`).join('')}catch(e){}}
+$('#busca').oninput=lista;
+$('#lProd').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;const p=P.find(x=>x.id===b.dataset.id);if(!p)return;
+  try{
+    if(b.dataset.a==='ed')return abrir(p);
+    if(b.dataset.a==='vis'){await ap('salvar',{produto:{...p,ativo:p.ativo===false}})}
+    if(b.dataset.a==='mais'){const n=prompt('Quantas unidades entraram no estoque?','1');if(n===null)return;const k=Math.floor(+String(n).replace(',','.'));if(!(k>0))return;await ap('salvar',{produto:{...p,estoque:(+p.estoque||0)+k}})}
+    if(b.dataset.a==='del'){if(!confirm('Excluir "'+p.nome+'" de vez? Para só esconder, use "Ocultar do site".'))return;await ap('excluir',{id:p.id})}
+    carregar()}catch(er){msg('#eApp',er.message,1)}});
 
-// ---- Página: só aceita as chaves conhecidas, com limites de tamanho (o que vier fora disso é descartado)
-const TXT = { aviso: 160, hero_tag: 120, hero_btn1: 30, hero_btn2: 30, destaques_t: 60, destaques_s: 160, vitrine_t: 60, vitrine_s: 160, polo_t: 60, polo_s: 200,
-  senna_t: 60, senna_s: 200, como_t: 60, como_s: 160, feed_t: 60, feed_s: 160, faq_t: 60, cta_t: 80, cta_s: 160, cta_btn_grupo: 40, cta_btn_ig: 40, rodape_frase: 120, whatsapp_msg: 300 };
-const SECOES = ['destaques', 'vitrine', 'polo', 'senna', 'como', 'feed', 'faq', 'cta'];
-const IMG = /^(img\/[\w.\-]+|\/\.netlify\/functions\/foto\?k=[a-z0-9]+\.jpg)$/;
-const img = v => { v = txt(v, 300); return IMG.test(v) ? v : ''; };
-const link = v => { v = txt(v, 300); return /^(https:\/\/[^\s"'<>]{3,290}|#[a-z0-9-]{1,30})$/.test(v) ? v : ''; };
-const lista = (v, n) => (Array.isArray(v) ? v : []).slice(0, n);
-function limparSite(s) {
-  s = s && typeof s === 'object' ? s : {}; const o = {};
-  for (const k in TXT) { const v = txt(s[k], TXT[k]); if (v) o[k] = v; }
-  const wa = String(s.whatsapp || '').replace(/\D/g, ''); if (wa.length >= 10 && wa.length <= 15) o.whatsapp = wa;
-  for (const k of ['instagram', 'grupo']) { const v = link(s[k]); if (v && v[0] !== '#') o[k] = v; }
-  for (const k of ['cor_destaque', 'cor_fundo']) { const v = txt(s[k], 7); if (/^#[0-9a-fA-F]{6}$/.test(v)) o[k] = v; }
-  if (img(s.hero_imagem)) o.hero_imagem = img(s.hero_imagem);
-  o.passos = lista(s.passos, 3).map(x => ({ t: txt(x && x.t, 60), s: txt(x && x.s, 200) })).filter(x => x.t || x.s);
-  o.selos = lista(s.selos, 4).map(x => ({ i: txt(x && x.i, 8), t: txt(x && x.t, 60) })).filter(x => x.t);
-  o.faq = lista(s.faq, 12).map(x => ({ q: txt(x && x.q, 160), a: txt(x && x.a, 600) })).filter(x => x.q && x.a);
-  o.feedbacks = lista(s.feedbacks, 8).map(img).filter(Boolean);
-  o.blocos = lista(s.blocos, 3).map(x => x = x || {}).map(x => ({ t: txt(x.t, 80), s: txt(x.s, 800), img: img(x.img), btn: txt(x.btn, 30), link: link(x.link) })).filter(x => x.t || x.s || x.img);
-  o.secoes = {}; for (const k of SECOES) o.secoes[k] = !(s.secoes && s.secoes[k] === false);
-  return o;
-}
+function abrir(p){
+  edId=p?p.id:null;p=p||{estoque:1,ativo:true,destaque:false,peso:0.25,largura:20,altura:12,comprimento:25,aba:'Curva',cat:'Bonés'};
+  $('#fTit').textContent=edId?'Editar produto':'Novo produto';
+  const v=(i,x)=>$(i).value=x==null||x===0&&i==='#fDe'?'':x;
+  v('#fNome',p.nome);v('#fPreco',p.preco);v('#fDe',p.precoDe);v('#fEst',p.estoque);v('#fCor',p.cor);v('#fCat',p.cat);v('#fLinha',p.linha);v('#fDesc',p.descricao);v('#fBadge',p.badge||'');
+  v('#fPeso',p.peso);v('#fAba',p.aba);v('#fLarg',p.largura);v('#fAlt',p.altura);v('#fComp',p.comprimento);
+  $('#fDest').checked=!!p.destaque;$('#fAtivo').checked=p.ativo!==false;
+  $('#dLinhas').innerHTML=[...new Set(P.map(x=>x.linha))].map(l=>`<option value="${esc(l)}">`).join('');
+  fotos=[...(p.imagens||[])];pintaFotos();msg('#eForm','');$('#mForm').classList.add('on');$('#fNome').focus()}
+$('#bNovo').onclick=()=>abrir(null);$('#bCancel').onclick=()=>$('#mForm').classList.remove('on');
+function pintaFotos(){
+  $('#fFotos').innerHTML=fotos.map((u,i)=>`<div class="f"><img class="ph" src="${esc(u)}" alt="Foto ${i+1}" onerror="this.style.opacity=.3"><button data-i="${i}" aria-label="Remover foto ${i+1}">✕</button></div>`).join('');
+  $('#bFoto').classList.toggle('hidden',fotos.length>=3)}
+$('#fFotos').addEventListener('click',e=>{const b=e.target.closest('button');if(b){fotos.splice(+b.dataset.i,1);pintaFotos()}});
+$('#bFoto').onclick=()=>$('#fArq').click();
+async function reduz(f){const b=await createImageBitmap(f),s=Math.min(1,1000/Math.max(b.width,b.height)),c=document.createElement('canvas');
+  c.width=Math.round(b.width*s);c.height=Math.round(b.height*s);c.getContext('2d').drawImage(b,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.82).split(',')[1]}
+$('#fArq').onchange=async e=>{
+  const fs=[...e.target.files].slice(0,3-fotos.length);e.target.value='';
+  for(const f of fs){msg('#eForm','Enviando foto…');
+    try{fotos.push((await ap('upload',{dados:await reduz(f)})).url);pintaFotos();msg('#eForm','')}catch(er){msg('#eForm',er.message,1);break}}};
+$('#bSalvar').onclick=async()=>{
+  const g=i=>$(i).value.trim(),b=$('#bSalvar');b.disabled=true;msg('#eForm','Salvando…');
+  try{await ap('salvar',{produto:{id:edId,nome:g('#fNome'),preco:g('#fPreco'),precoDe:g('#fDe'),estoque:g('#fEst'),cor:g('#fCor'),cat:g('#fCat'),linha:g('#fLinha'),descricao:g('#fDesc'),
+     badge:g('#fBadge'),destaque:$('#fDest').checked,ativo:$('#fAtivo').checked,peso:g('#fPeso'),aba:g('#fAba'),largura:g('#fLarg'),altura:g('#fAlt'),comprimento:g('#fComp'),imagens:fotos}});
+    $('#mForm').classList.remove('on');carregar()}catch(e){msg('#eForm',e.message,1)}b.disabled=false};
 
-async function login(e, senha) {
-  const sen = (process.env.ADMIN_SENHA || '').trim();
-  if (!sen) return J(500, { erro: 'O servidor não encontrou a variável ADMIN_SENHA. Crie-a no Netlify (Environment variables) e faça um novo deploy.' });
-  if (sen.length < 10) return J(500, { erro: 'A ADMIN_SENHA salva no Netlify tem só ' + sen.length + ' caracteres, e precisa ter pelo menos 10. Edite o valor e faça um novo deploy.' });
-  const seg = st(e, 'seg'); let f = { n: 0, ate: 0 };
-  try { f = (await seg.get('falhas', { type: 'json' })) || f; } catch (err) { console.error('contador de tentativas indisponível:', err.message); }   // se o armazenamento falhar, o login continua
-  if (f.ate > Date.now()) return J(429, { erro: 'Muitas tentativas. Aguarde 15 minutos.' });
-  if (!iguais(String(senha || '').trim(), sen)) {
-    f.n++; if (f.n >= 5) f = { n: 0, ate: Date.now() + 15 * 60e3 };
-    try { await seg.setJSON('falhas', f); } catch (err) {} await new Promise(r => setTimeout(r, 800));
-    return J(401, { erro: 'Senha incorreta.' });
-  }
-  try { await seg.setJSON('falhas', { n: 0, ate: 0 }); } catch (err) {}
-  return J(200, { token: assinar() });
-}
+/* ---------- PEDIDOS ---------- */
+const ST={approved:['Pago','ok'],pending:['Aguardando pagamento',''],in_process:['Em análise',''],authorized:['Em análise',''],rejected:['Recusado','off'],cancelled:['Cancelado','off'],refunded:['Devolvido','off']};
+let PED=[];
+async function pedidos(){try{PED=(await ap('pedidos')).pedidos;msg('#eApp','');
+  $('#lPed').innerHTML=PED.length?PED.map((o,i)=>{const c=o.cliente||{},f=o.frete||{},s=ST[o.status]||[o.status||'—',''];
+   return `<div class="card"><b>${esc(o.ref)}</b><span class="tag ${s[1]}">${esc(s[0])}</span><br>
+   <small class="mut">${new Date(o.criado).toLocaleString('pt-BR')} · ${brl(o.valor)}</small>
+   <pre>${esc(c.nome)} · ${esc(c.tel)}\n${esc(c.email)}\n${esc(c.endereco)} — ${esc(c.cidade)} · CEP ${esc(o.cep)}\n${(o.itens||[]).map(x=>x.q+'x '+esc(x.nome)).join('\n')}\nFrete: ${esc(f.nome)} (${brl(f.valor)})</pre>
+   <div class="acts"><button class="btn sm" data-p="cp" data-i="${i}">Copiar dados p/ etiqueta</button></div>
+   ${o.status==='approved'?`<label class="chk"><input type="checkbox" data-p="env" data-i="${i}" ${o.enviado?'checked':''}> Já enviei este pedido</label>
+   <label>Código de rastreio<input class="inp" data-p="rast" data-i="${i}" value="${esc(o.rastreio)}" maxlength="40"></label>
+   <div class="acts"><button class="btn pri sm" data-p="sv" data-i="${i}">Salvar envio</button></div>`:''}</div>`}).join('')
+   :'<p class="mut">Nenhum pedido ainda. Os pedidos pagos pelo site aparecem aqui.</p>'}catch(e){msg('#eApp',e.message,1)}}
+$('#lPed').addEventListener('click',async e=>{
+  const b=e.target.closest('button[data-p]');if(!b)return;const o=PED[+b.dataset.i],c=o.cliente||{},f=o.frete||{};
+  if(b.dataset.p==='cp'){const t=`Nome: ${c.nome}\nTelefone: ${c.tel}\nE-mail: ${c.email}\nEndereço: ${c.endereco}\nCidade/UF: ${c.cidade}\nCEP: ${o.cep}\nServiço escolhido: ${f.nome}\nConteúdo: ${(o.itens||[]).map(x=>x.q+'x '+x.nome).join(', ')}`;
+    try{await navigator.clipboard.writeText(t);b.textContent='Copiado ✓'}catch(er){prompt('Copie os dados:',t)}}
+  if(b.dataset.p==='sv'){const card=b.closest('.card');try{await ap('pedido',{ref:o.ref,enviado:card.querySelector('[data-p=env]').checked,rastreio:card.querySelector('[data-p=rast]').value});b.textContent='Salvo ✓'}catch(er){msg('#eApp',er.message,1)}}});
 
-exports.handler = async e => {
-  if (e.httpMethod !== 'POST') return J(405, { erro: 'Método inválido' });
-  try {
-    const b = JSON.parse(e.body || '{}');
-    if (b.acao === 'login') return await login(e, b.senha);
-    if (!process.env.ADMIN_SENHA || !tokenOk((e.headers.authorization || '').replace(/^Bearer /, ''))) return J(401, { erro: 'Sessão expirada. Entre de novo.' });
-    switch (b.acao) {
-      case 'listar': return J(200, { produtos: await lerProdutos(e) });
-      case 'salvar': {
-        const n = await salvarProduto(e, limpar(b.produto || {})); return J(200, { produto: n });
-      }
-      case 'excluir': {
-        if (!/^[a-z0-9-]{1,60}$/.test(b.id || '')) throw new Error('Produto inválido');
-        await removerProduto(e, b.id); return J(200, { ok: true });
-      }
-      case 'upload': {
-        const d = String(b.dados || ''); if (d.length > 2.2e6) throw new Error('Foto muito grande');
-        const buf = Buffer.from(d, 'base64'); if (buf.length < 100 || buf[0] !== 0xff || buf[1] !== 0xd8) throw new Error('Envie uma foto JPG');
-        const k = Date.now().toString(36) + crypto.randomBytes(3).toString('hex') + '.jpg';
-        await st(e, 'fotos').set(k, buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length));
-        return J(200, { url: '/.netlify/functions/foto?k=' + k });
-      }
-      case 'pedidos': {
-        const ped = st(e, 'pedidos'), { blobs } = await ped.list();
-        const ks = blobs.map(x => x.key).sort().reverse().slice(0, 60);
-        return J(200, { pedidos: (await Promise.all(ks.map(k => ped.get(k, { type: 'json' })))).filter(Boolean) });
-      }
-      case 'pedido': {
-        if (!/^DOM-[A-Z0-9]+$/.test(b.ref || '')) throw new Error('Pedido inválido');
-        const ped = st(e, 'pedidos'), o = await ped.get(b.ref, { type: 'json' }); if (!o) throw new Error('Pedido não encontrado');
-        o.enviado = !!b.enviado; o.rastreio = txt(b.rastreio, 40); await ped.setJSON(b.ref, o); return J(200, { ok: true });
-      }
-      case 'site_ler': return J(200, { site: await lerSite(e) });
-      case 'site_salvar': { const o = limparSite(b.site); await salvarSite(e, o); return J(200, { site: o }); }
-      case 'diag': {   // mostra no painel o que está ligado e, se o armazenamento falhar, o motivo
-        let erro = ''; try { await st(e, 'loja').list({ prefix: 'p:' }); } catch (err) { erro = err.message; }
-        return J(200, { armazenamento: !erro, erro, pagamento: !!process.env.MP_ACCESS_TOKEN, frete: !!process.env.CEP_ORIGEM && !!(process.env.SF_TOKEN || process.env.ME_TOKEN) });
-      }
-      default: return J(400, { erro: 'Ação inválida' });
-    }
-  } catch (err) { console.error('admin', err.message); return J(400, { erro: err.message }); }
-};
+
+/* ---------- FEEDBACKS DE CLIENTES (aba Feedbacks) ---------- */
+const BCF=(()=>{try{return new BroadcastChannel('dominnion')}catch(e){return null}})();
+let FB={fotos:[]};
+async function feeds(){
+  try{const s=(await ap('site_ler')).site||{};FB.fotos=[...(s.feedbacks||[])];
+    $('#fbT').value=s.feed_t||'';$('#fbS').value=s.feed_s||'';$('#fbMostrar').checked=!(s.secoes&&s.secoes.feed===false);
+    pintaFb();msg('#eFeed','')}catch(e){msg('#eFeed',e.message,1)}}
+function pintaFb(){
+  $('#fbLista').innerHTML=FB.fotos.map((u,i)=>`<div class="f"><img class="ph" src="${esc(u)}" alt="Feedback ${i+1}"><button class="x" data-fb="x" data-i="${i}" aria-label="Remover foto ${i+1}">✕</button><div class="mvs"><button data-fb="l" data-i="${i}" ${i?'':'disabled'} aria-label="Mover para a esquerda">←</button><button data-fb="r" data-i="${i}" ${i<FB.fotos.length-1?'':'disabled'} aria-label="Mover para a direita">→</button></div></div>`).join('')||'<p class="mut">Nenhuma foto ainda. Enquanto estiver vazio, a loja mostra os espaços padrão.</p>';
+  $('#fbAdd').classList.toggle('hidden',FB.fotos.length>=8);
+  $('#fbCont').textContent='('+FB.fotos.length+' de 8)'}
+$('#fbLista').addEventListener('click',e=>{const b=e.target.closest('[data-fb]');if(!b||b.disabled)return;const i=+b.dataset.i,a=b.dataset.fb,L=FB.fotos;
+  if(a==='x')L.splice(i,1);
+  else if(a==='l'&&i>0)[L[i-1],L[i]]=[L[i],L[i-1]];
+  else if(a==='r'&&i<L.length-1)[L[i+1],L[i]]=[L[i],L[i+1]];
+  pintaFb()});
+$('#fbAdd').onclick=()=>{const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;
+  inp.onchange=async()=>{for(const f of [...inp.files].slice(0,8-FB.fotos.length)){msg('#eFeed','Enviando foto…');
+    try{FB.fotos.push((await ap('upload',{dados:await reduz(f)})).url);pintaFb();msg('#eFeed','')}catch(er){msg('#eFeed',er.message,1);break}}};
+  inp.click()};
+$('#fbSalvar').onclick=async()=>{const b=$('#fbSalvar');b.disabled=true;msg('#eFeed','Salvando…');
+  try{const cur=(await ap('site_ler')).site||{};            // lê o que já está salvo para não apagar mais nada da página
+    const novo={...cur,feedbacks:FB.fotos},t=$('#fbT').value.trim(),s=$('#fbS').value.trim();
+    if(t)novo.feed_t=t;else delete novo.feed_t;if(s)novo.feed_s=s;else delete novo.feed_s;
+    novo.secoes={...(cur.secoes||{}),feed:$('#fbMostrar').checked};
+    const r=(await ap('site_salvar',{site:novo})).site;FB.fotos=[...(r.feedbacks||[])];pintaFb();
+    BCF&&BCF.postMessage('mudou');msg('#eFeed','Feedbacks salvos. A loja atualiza sozinha em poucos segundos.')}
+  catch(e){msg('#eFeed',e.message,1)}b.disabled=false};
+
+if(tok)entrou();
+</script>
+</main>
+</body>
+</html>
